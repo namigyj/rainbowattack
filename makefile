@@ -1,5 +1,5 @@
 LIBS = -pthread -lcryptopp
-FLAGS = -O3 -Wpedantic -Wall
+FLAGS = -O3 -Wextra -Wall
 CPP = clang++ -std=c++17
 INCREDIBLESHITLANG = -lstdc++fs
 
@@ -26,4 +26,4 @@ run: mktable
 
 clean:
 	rm -v -f *.o
-	rm -v -f table
+	rm -v -f mktable

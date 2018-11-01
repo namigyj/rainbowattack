@@ -1,8 +1,8 @@
 # TODO
-* spanning threads
-* next() factory
+* stuff as command line arguments instead
+* better mk\_next\_rand
+* TESTS !!!
 * refactor some stuff to config.h
-* write some test especially for writing
 * lookup in the rainbowtable:
     * read from file
     * make the `unordered_map`
