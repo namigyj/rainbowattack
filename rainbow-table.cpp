@@ -30,17 +30,18 @@ auto compute_line(const std::array<u8, hd_l>& head, int max_col) {
     return std::make_unique<rb::RowPair<hd_l, tl_l>>(head, r);
 }
 
-
 std::mutex display_g;
+
 template< typename Q, typename F >
 void th_work(Q& chan, F& next, int max_lines, int max_col) {
     std::unique_ptr<rb::RowPair<hd_l, tl_l>> res;
     auto id = std::this_thread::get_id();
+    const int div = 500;
 
     for(int i = 0; i < max_lines; i++) {
-        if(max_lines > 1000 && !(i % 1000)) {
+        if(max_lines > div && i % div == 0){
             display_g.lock();
-            std::cout << id << ": " << i << std::endl;
+            std::cout << id << ": " << (((float)i) / 1000) << "/" << (max_lines/1000) << "K" << std::endl;
             display_g.unlock();
         }
         res = compute_line(next(), max_col);
@@ -61,6 +62,7 @@ void th_writer(Q& chan, std::ofstream& f, int max_lines) {
     std::unique_ptr<rb::RowPair<hd_l, tl_l>> r;
     int i = 0;
 
+    /* FIXME : this will loop forever if one thread crashed */
     do {
         if(!chan.try_dequeue(r)) {
             std::this_thread::sleep_for(microseconds(50));
@@ -96,6 +98,7 @@ int helper(const int i, const int n, const int c) {
 }
 
 std::mutex next_g;
+
 template<size_t N>
 auto mk_next_chars() {
     const size_t cslen = rb::length(charset);
@@ -136,19 +139,26 @@ int main() {
     /* TODO : number of threads as argument, [lines/columns too ?] */
     file_exit("foo.bin");
 
-    auto thcount = th_n;
     auto q = moodycamel::ConcurrentQueue<std::unique_ptr<rb::RowPair<hd_l, tl_l>>>();
     auto n = mk_next_chars<hd_l>();
     using chan_t = decltype(q);
 
-    auto worker1= std::thread(th_work<chan_t, decltype(n)>,
-                              std::ref(q), std::ref(n), row_n/2, col_n);
-    auto worker2= std::thread(th_work<chan_t, decltype(n)>,
-                              std::ref(q), std::ref(n), row_n/2, col_n);
-    auto o = std::ofstream("foo.bin", std::ios::binary|std::ios::app);
 
+    auto th_vec = std::vector<std::thread>(th_n);
+    for(auto it = th_vec.begin(); it != th_vec.end(); it++) {
+        int r = row_n / th_n;
+        if(it == th_vec.begin())
+            r += row_n % th_n;
+
+        (* it) = std::thread(th_work<chan_t, decltype(n)>,
+                             std::ref(q), std::ref(n), r,  col_n);
+    }
+
+    auto o = std::ofstream("foo.bin", std::ios::binary|std::ios::app);
     auto writer = std::thread(th_writer<chan_t>, std::ref(q), std::ref(o), row_n);
-    worker1.join();
-    worker2.join();
+
+    for(auto& th : th_vec) {
+        th.join();
+    }
     writer.join();
 }

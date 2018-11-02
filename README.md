@@ -1,3 +1,4 @@
+# Rainbow Table attack
 # TODO
 * stuff as command line arguments instead
 * better mk\_next\_rand
