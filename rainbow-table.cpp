@@ -137,7 +137,7 @@ auto mk_next_rand() {
 int main() {
     /* TODO : filename as argument */
     /* TODO : number of threads as argument, [lines/columns too ?] */
-    file_exit("foo.bin");
+    file_exit(filename);
 
     auto q = moodycamel::ConcurrentQueue<std::unique_ptr<rb::RowPair<hd_l, tl_l>>>();
     auto n = mk_next_chars<hd_l>();
@@ -154,7 +154,7 @@ int main() {
                              std::ref(q), std::ref(n), r,  col_n);
     }
 
-    auto o = std::ofstream("foo.bin", std::ios::binary|std::ios::app);
+    auto o = std::ofstream(filename, std::ios::binary | std::ios::app);
     auto writer = std::thread(th_writer<chan_t>, std::ref(q), std::ref(o), row_n);
 
     for(auto& th : th_vec) {
