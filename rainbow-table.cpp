@@ -6,6 +6,8 @@
 #include <chrono>
 #include <mutex>
 #include <random>
+#include <algorithm> // for std::max
+#include <string> // for std::atoi
 
 // #define NDEBUG
 #include <cassert>
@@ -75,16 +77,18 @@ void th_writer(Q& chan, std::ofstream& f, int max_lines) {
 }
 
 
-void file_exit(const std::string& filepath) {
+void file_exist(const std::string& filepath) {
     if(std::filesystem::exists(filepath)) {
         int r = -1;
         do {
-            std::cout << "Detected existing file. Overwrite it (y/n)? ";
+            std::cout << "file " << filepath << " already exists. Overwrite it (y/n)? ";
             r = io::get_y_n();
         } while (r < 0);
 
-        if(!r)
-            exit(0);
+        if (!r) {
+            std::cout << "existing";
+            exit(EXIT_FAILURE);
+        }
 
         auto o = std::ofstream(filepath, std::ios::binary);
         o.close();
@@ -92,56 +96,56 @@ void file_exit(const std::string& filepath) {
     }
 }
 
-int helper(const int i, const int n, const int c) {
-    /* refactor */
-    return std::floor(n / std::pow(c, i));
-}
-
-std::mutex next_g;
-
 template<size_t N>
 auto mk_next_chars() {
     const size_t cslen = rb::length(charset);
-    auto n_ = std::make_unique<size_t>();
+    auto n_ = std::make_unique<std::atomic<size_t>>();
 
     return [n{move(n_)}] {
                size_t m;
-               next_g.lock();
                m = (* n.get())++;
-               next_g.unlock();
                /* this is shit but I don't have any better ideas */
                std::array <u8, N> r;
                for(size_t i = 0; i < N; i++) {
-                   int j = helper(i, m, cslen) % cslen;
+                   int j = (int) (m / std::pow(cslen, i)) % cslen;
                    r[i] = charset[j % cslen];
                }
                return r;
            };
 }
 
-template<size_t N>
-auto mk_next_rand() {
-    std::random_device rd;
-    auto gen = std::make_unique<std::mt19937>(rd());
-    auto distr = std::make_unique<std::uniform_int_distribution<int>>(
-        0,
-        rb::length(charset));
 
-    return [g{move(gen)}, d{move(distr)}](){
-               /* TODO : buid array form charset */
-               //(* d.get())(* g.get());
-               return std::array<u8, N>();
-           };
+void usage(const char * exename) {
+    std::cout << "USAGE: \n";
+    std::cout << exename << " [-j<number>] [FILE]\n";
+    std::cout << "\ndefault: -j4 foo.bin\n";
+    std::exit(EXIT_FAILURE);
 }
 
-int main() {
-    /* TODO : filename as argument */
-    /* TODO : number of threads as argument, [lines/columns too ?] */
-    file_exit(filename);
+int main(int argc, char **argv) {
+    bool jset = false, fset = false;
+
+    for (int i = 1; i < argc; i++) {
+        if (argv[i][0] == '-' && argv[i][1] == 'j' && !jset) {
+            th_n = std::max(1, std::atoi(&argv[i][2]));
+            jset = true;
+        } else if (!fset) {
+            filename = std::string(argv[i]);
+            fset = true;
+        } else {
+            usage(argv[0]);
+        }
+    }
+
+    std::cout << "filename " << filename << '\n';
+    std::cout << "jobs " << th_n << '\n';
+
+    file_exist(filename); // default = foo.bin
+    std::exit(0);
 
     auto q = moodycamel::ConcurrentQueue<std::unique_ptr<rb::RowPair<hd_l, tl_l>>>();
+    using chan_t = decltype(q); // lol
     auto n = mk_next_chars<hd_l>();
-    using chan_t = decltype(q);
 
 
     auto th_vec = std::vector<std::thread>(th_n);

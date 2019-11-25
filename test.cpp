@@ -1,6 +1,8 @@
-#include <iostream>
 #include <array>
 #include <cassert>
+#include <iostream>
+#include <thread>
+#include <atomic>
 
 #include <cryptopp/sha.h>
 
@@ -49,7 +51,14 @@ void test_reduction_dynN() {
     assert(reduce(s1, d1, 1) == reduce(s2, d2, 1));
 }
 
+const int max = 1000000;
+
+void th_work(std::atomic<size_t> *s) {
+    for (int i = 0; i < max; i++)
+        (*s)++;
+}
+
 int main() {
-    /* tfw too lazy to use test framework */
-    test_reduction_dynN();
+    /* too lazy to use test framework */
+    // test_reduction_dynN();
 }
