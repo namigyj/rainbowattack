@@ -3,11 +3,10 @@
 #include <filesystem>
 #include <memory>
 #include <thread>
-#include <chrono>
-#include <mutex>
-#include <random>
-#include <algorithm> // for std::max
-#include <string> // for std::atoi
+#include <chrono>    // for queue polling
+#include <mutex>     // display lock
+#include <algorithm> // std::max
+#include <string>    // std::string, std::atoi
 
 // #define NDEBUG
 #include <cassert>
@@ -20,33 +19,51 @@
 
 using u8 = unsigned char;
 
-auto compute_line(const std::array<u8, hd_l>& head, int max_col) {
-    auto r = std::array<u8, tl_l>();
-    auto h = head;
-    r = rb::hash(r, h);
-    int i = 0;
-    while (i < max_col) {
-        r = rb::hash(r, rb::reduce(h, r, i));
-        i++;
+// @SPEEDUP since we only change one thing at a time, in code grey-style, there are max 2 bytes in the
+//   array we need to change at the time -> pass array, compute mask (?) and change those?
+//   this would save us on the loop
+//   ..  but then again, it's only called once per line
+auto next_head(uint n) {
+    using namespace def;
+    std::array<u8, hd_l> r;
+    const size_t cslen = rb::length(charset);
+    for(size_t i = 0; i < hd_l; i++) {
+        // @SPEEDUP get rid of the cast and the pow? possible using just bitmasks?
+        uint j = (uint) (n / std::pow(cslen, i)) % cslen;
+        r[i] = charset[j & cslen];
     }
-    return std::make_unique<rb::RowPair<hd_l, tl_l>>(head, r);
+    return r;
+}
+
+auto compute_line(const std::array<u8, def::hd_l>& head, uint max_col) {
+    using namespace def;
+    auto tl = std::array<u8, tl_l>();
+    auto h = head;
+    rb::hash(tl, h);
+    uint i = 0;
+    // @TODO short-circuit if hash doesn't change?
+    do {
+        rb::hash(tl, rb::reduce(h, tl, i));
+    } while (++i < max_col);
+    return std::make_unique<rb::RowPair<hd_l, tl_l>>(head, tl);
 }
 
 std::mutex display_g;
 
-template< typename Q, typename F >
-void th_work(Q& chan, F& next, int max_lines, int max_col) {
+template< typename Q>
+void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
+    using namespace def;
     std::unique_ptr<rb::RowPair<hd_l, tl_l>> res;
     auto id = std::this_thread::get_id();
     const int div = 500;
 
-    for(int i = 0; i < max_lines; i++) {
+    for(size_t i = 0; i < max_lines; i++) {
         if(max_lines > div && i % div == 0){
             display_g.lock();
             std::cout << id << ": " << (((float)i) / 1000) << "/" << (max_lines/1000) << "K" << std::endl;
             display_g.unlock();
         }
-        res = compute_line(next(), max_col);
+        res = compute_line(next_head(start++), max_col);
         chan.enqueue(std::move(res));
         /* note: we could also allocate res in here and
          * pass the reference to results
@@ -59,10 +76,11 @@ void th_work(Q& chan, F& next, int max_lines, int max_col) {
 }
 
 template< typename Q>
-void th_writer(Q& chan, std::ofstream& f, int max_lines) {
+void th_writer(Q& chan, std::ofstream& f, uint max_lines) {
+    using namespace def;
     using microseconds = std::chrono::microseconds;
     std::unique_ptr<rb::RowPair<hd_l, tl_l>> r;
-    int i = 0;
+    uint i = 0;
 
     /* FIXME : this will loop forever if one thread crashed */
     do {
@@ -71,13 +89,13 @@ void th_writer(Q& chan, std::ofstream& f, int max_lines) {
             continue;
         }
 
-        f.write((char *) r.get()->data(), r.get()->size());
-        i++;
-    } while( i < max_lines);
+        f.write((char *) r->data(), r->size());
+    } while( ++i < max_lines);
 }
 
 
 void file_exist(const std::string& filepath) {
+    using namespace def;
     if(std::filesystem::exists(filepath)) {
         int r = -1;
         do {
@@ -96,25 +114,6 @@ void file_exist(const std::string& filepath) {
     }
 }
 
-template<size_t N>
-auto mk_next_chars() {
-    const size_t cslen = rb::length(charset);
-    auto n_ = std::make_unique<std::atomic<size_t>>();
-
-    return [n{move(n_)}] {
-               size_t m;
-               m = (* n.get())++;
-               /* this is shit but I don't have any better ideas */
-               std::array <u8, N> r;
-               for(size_t i = 0; i < N; i++) {
-                   int j = (int) (m / std::pow(cslen, i)) % cslen;
-                   r[i] = charset[j % cslen];
-               }
-               return r;
-           };
-}
-
-
 void usage(const char * exename) {
     std::cout << "USAGE: \n";
     std::cout << exename << " [-j<number>] [FILE]\n";
@@ -122,8 +121,18 @@ void usage(const char * exename) {
     std::exit(EXIT_FAILURE);
 }
 
+template<typename T, size_t N>
+std::ostream& operator<<(std::ostream& o, const std::array<T,N>& arr){
+    for(auto it : arr)
+        o << it;
+    return o;
+}
+
 int main(int argc, char **argv) {
     bool jset = false, fset = false;
+
+    auto th_n = def::th_n;
+    auto filename = def::filename;
 
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-' && argv[i][1] == 'j' && !jset) {
@@ -141,25 +150,23 @@ int main(int argc, char **argv) {
     std::cout << "jobs " << th_n << '\n';
 
     file_exist(filename); // default = foo.bin
-    std::exit(0);
 
-    auto q = moodycamel::ConcurrentQueue<std::unique_ptr<rb::RowPair<hd_l, tl_l>>>();
+    auto q = moodycamel::ConcurrentQueue<std::unique_ptr<rb::RowPair<def::hd_l, def::tl_l>>>();
     using chan_t = decltype(q); // lol
-    auto n = mk_next_chars<hd_l>();
 
-
+    uint lines = def::row_n / def::th_n;
+    uint offset = 0; // first thread takes does remainder
+    // @TODO use a thread_pool instead
     auto th_vec = std::vector<std::thread>(th_n);
     for(auto it = th_vec.begin(); it != th_vec.end(); it++) {
-        int r = row_n / th_n;
-        if(it == th_vec.begin())
-            r += row_n % th_n;
-
-        (* it) = std::thread(th_work<chan_t, decltype(n)>,
-                             std::ref(q), std::ref(n), r,  col_n);
+        uint lines = (def::row_n / def::th_n) + (offset == 0 ? 0 : def::row_n % def::th_n);
+        (* it) = std::thread(th_work<chan_t>,
+                             std::ref(q), offset, lines, def::col_n);
+        offset += lines;
     }
 
     auto o = std::ofstream(filename, std::ios::binary | std::ios::app);
-    auto writer = std::thread(th_writer<chan_t>, std::ref(q), std::ref(o), row_n);
+    auto writer = std::thread(th_writer<chan_t>, std::ref(q), std::ref(o), def::row_n);
 
     for(auto& th : th_vec) {
         th.join();

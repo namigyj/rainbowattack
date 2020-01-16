@@ -7,9 +7,10 @@
 #include "config.h"
 
 namespace rb {
+    using namespace def;
     using u8 = unsigned char;
 
-    template<size_t Hd, std::size_t Tl>
+    template<size_t Hd, size_t Tl>
     class RowPair {
         struct row_pair {
             std::array<u8, Hd> head;
@@ -27,8 +28,8 @@ namespace rb {
 
         RowPair(const std::array<u8, Hd>& hd);
 
-        RowPair(const std::array<u8, Hd>& hd,
-                const std::array<u8, Tl>& tl);
+        RowPair(const std::array<u8, Hd>& hd
+               ,const std::array<u8, Tl>& tl);
 
         struct row_pair * data();
 
@@ -45,20 +46,20 @@ namespace rb {
         return o;
     }
 
-    template <typename T, size_t N>
-    T& reduce(T& o, std::array<u8, N> digest, int n) {
-        size_t r = n, k = 0, l = rb::length(charset);
-        size_t i = 0;
-        for(auto it = o.begin(); it != o.end(); it++) {
+    template <typename T, size_t M, size_t N>
+    std::array<T,M>& reduce(std::array<T, M>& o, const std::array<u8, N>& digest, const size_t& n) {
+        size_t r = n;
+        size_t k = 0, l = rb::length(charset);
+        for(size_t i = 0; i < M; i++) {
             /* r := n + d[i+0] + d[i+8] + d[i+16] + ...
              * but constrainted to the size of digest
              */
-            for(size_t j = 0; j < (N/8)+1; j++) {
+            r = 0;
+            for(size_t j = 0; j < (N/8)+1; j+=8) {
                 k = i + 8*j;
-                r += digest[k%N];
+                r += digest[k % N];
             }
-            *it = charset[r % l];
-            i++;
+            o[i] = charset[r % l];
         }
         return o;
     }

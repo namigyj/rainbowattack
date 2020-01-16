@@ -3,6 +3,7 @@
 #include "config.h"
 
 namespace rb {
+    using namespace def;
     template<size_t Hd, size_t Tl>
     struct RowPair<Hd,Tl>::row_pair* RowPair<Hd,Tl>::data() {
         return &rp;
@@ -28,8 +29,8 @@ namespace rb {
     }
 
     template<size_t Hd, size_t Tl>
-    RowPair<Hd,Tl>::RowPair(const std::array<u8, Hd>& hd,
-            const std::array<u8, Tl>& tl) {
+    RowPair<Hd,Tl>::RowPair(const std::array<u8, Hd>& hd
+                           ,const std::array<u8, Tl>& tl) {
         rp.head = hd;
         rp.tail = tl;
     }

@@ -1,7 +1,7 @@
 TLIBS = -pthread
 LIBS = -lcryptopp
-FLAGS = -O3 -Wextra -Wall
-CPP = g++ -std=c++17
+FLAGS = -O2 -Wextra -Wall -flto -fuse-ld=lld
+CPP = clang++ -std=c++17
 INCREDIBLESHITLANG = -lstdc++fs
 
 all: mktable lookup
@@ -23,7 +23,7 @@ rainbow-lookup.o: rainbow-lookup.cpp types.o utils.o
 	$(CPP) $(FLAGS) -c rainbow-lookup.cpp
 
 mktable: rainbow-table.o types.o utils.o
-	$(CPP) $(TLIBS) $(LIBS) $(FLAGS) -o $@ $^ $(INCREDIBLESHITLANG)
+	$(CPP) $(TLIBS) $(FLAGS) $(LIBS) -o $@ $^ $(INCREDIBLESHITLANG)
 
 lookup: rainbow-lookup.o types.o utils.o
 	$(CPP) $(FLAGS) -std=c++17 -o $@ $^
