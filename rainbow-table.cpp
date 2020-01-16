@@ -18,14 +18,16 @@
 #include "concurrentqueue.h"
 
 using u8 = unsigned char;
+using hash_t = std::array<u8, tl_l>;
+using pass_t = std::array<u8, hd_l>;
 
 // @SPEEDUP since we only change one thing at a time, in code grey-style, there are max 2 bytes in the
 //   array we need to change at the time -> pass array, compute mask (?) and change those?
 //   this would save us on the loop
-//   ..  but then again, it's only called once per line
+//   ..  but then, it's only called once per line...
 auto next_head(uint n) {
     using namespace def;
-    std::array<u8, hd_l> r;
+    pass_t r;
     const size_t cslen = rb::length(charset);
     for(size_t i = 0; i < hd_l; i++) {
         // @SPEEDUP get rid of the cast and the pow? possible using just bitmasks?
@@ -35,12 +37,13 @@ auto next_head(uint n) {
     return r;
 }
 
-auto compute_line(const std::array<u8, def::hd_l>& head, uint max_col) {
+auto compute_line(const pass_t& head, uint max_col) {
     using namespace def;
-    auto tl = std::array<u8, tl_l>();
+    auto tl = hash_t();
     auto h = head;
     rb::hash(tl, h);
     uint i = 0;
+    // /!\ tight loop /!\
     // @TODO short-circuit if hash doesn't change?
     do {
         rb::hash(tl, rb::reduce(h, tl, i));
@@ -53,7 +56,6 @@ std::mutex display_g;
 template< typename Q>
 void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
     using namespace def;
-    std::unique_ptr<rb::RowPair<hd_l, tl_l>> res;
     auto id = std::this_thread::get_id();
     const int div = 500;
 
@@ -63,11 +65,8 @@ void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
             std::cout << id << ": " << (((float)i) / 1000) << "/" << (max_lines/1000) << "K" << std::endl;
             display_g.unlock();
         }
-        res = compute_line(next_head(start++), max_col);
-        chan.enqueue(std::move(res));
-        /* note: we could also allocate res in here and
-         * pass the reference to results
-         */
+        auto res = compute_line(next_head(start++), max_col);
+        chan.enqueue(res);
     }
 
     display_g.lock();
@@ -82,7 +81,7 @@ void th_writer(Q& chan, std::ofstream& f, uint max_lines) {
     std::unique_ptr<rb::RowPair<hd_l, tl_l>> r;
     uint i = 0;
 
-    /* FIXME : this will loop forever if one thread crashed */
+    /* FIXME : this will loop forever if one thread crashes */
     do {
         if(!chan.try_dequeue(r)) {
             std::this_thread::sleep_for(microseconds(50));

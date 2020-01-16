@@ -47,8 +47,8 @@ namespace rb {
     }
 
     template <typename T, size_t M, size_t N>
-    std::array<T,M>& reduce(std::array<T, M>& o, const std::array<u8, N>& digest, const size_t& n) {
-        size_t r = n;
+    std::array<T,M>& reduce(std::array<T, M>& o, const std::array<u8, N>& digest, const size_t& round) {
+        size_t r = round;
         size_t k = 0, l = rb::length(charset);
         for(size_t i = 0; i < M; i++) {
             /* r := n + d[i+0] + d[i+8] + d[i+16] + ...
