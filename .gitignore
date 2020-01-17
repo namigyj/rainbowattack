@@ -2,7 +2,11 @@
 *.o
 *.bin
 *.bak
-test
-mktable
 \#*\#
+
+result
+
+# binaries
 lookup
+mktable
+test
