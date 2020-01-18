@@ -1,10 +1,30 @@
 #include <array>
-//#include <iostream>
 
 #include <cryptopp/sha.h>
 
 #include "utils.hpp"
 #include "config.h"
+
+namespace std {
+    // see: https://stackoverflow.com/a/8026914
+    template<typename T, size_t N>
+    struct hash<array<T, N> > {
+        typedef array<T, N> argument_type;
+        typedef size_t result_type;
+
+        result_type operator()(const argument_type& a) const {
+            hash<T> hasher;
+            result_type h = 0;
+            for (result_type i = 0; i < N; ++i) {
+                h = h * 31 + hasher(a[i]);
+            }
+            return h;
+        }
+    };
+}
+
+using hash_t = std::array<u8, def::tl_l>;
+using pass_t = std::array<u8, def::hd_l>;
 
 namespace rb {
     using namespace def;
@@ -47,7 +67,7 @@ namespace rb {
     }
 
     template <typename T, size_t M, size_t N>
-    std::array<T,M>& reduce(std::array<T, M>& o, const std::array<u8, N>& digest, const size_t& round) {
+    inline std::array<T,M>& reduce(std::array<T, M>& o, const std::array<u8, N>& digest, const size_t& round) {
         size_t r = round;
         size_t k = 0, l = rb::length(charset);
         for(size_t i = 0; i < M; i++) {

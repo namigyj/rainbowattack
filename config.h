@@ -2,7 +2,6 @@
 #include <cstddef>
 #include <cstdint>
 
-using uint = uint32_t;
 namespace def {
     static const std::string filename = "foo.bin";
     static const uint th_n = 4;

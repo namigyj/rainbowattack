@@ -17,10 +17,6 @@
 
 #include "concurrentqueue.h"
 
-using u8 = unsigned char;
-using hash_t = std::array<u8, tl_l>;
-using pass_t = std::array<u8, hd_l>;
-
 // @SPEEDUP since we only change one thing at a time, in code grey-style, there are max 2 bytes in the
 //   array we need to change at the time -> pass array, compute mask (?) and change those?
 //   this would save us on the loop
@@ -66,7 +62,7 @@ void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
             display_g.unlock();
         }
         auto res = compute_line(next_head(start++), max_col);
-        chan.enqueue(res);
+        chan.enqueue(std::move(res));
     }
 
     display_g.lock();
@@ -113,13 +109,6 @@ void file_exist(const std::string& filepath) {
     }
 }
 
-void usage(const char * exename) {
-    std::cout << "USAGE: \n";
-    std::cout << exename << " [-j<number>] [FILE]\n";
-    std::cout << "\ndefault: -j4 foo.bin\n";
-    std::exit(EXIT_FAILURE);
-}
-
 template<typename T, size_t N>
 std::ostream& operator<<(std::ostream& o, const std::array<T,N>& arr){
     for(auto it : arr)
@@ -128,47 +117,33 @@ std::ostream& operator<<(std::ostream& o, const std::array<T,N>& arr){
 }
 
 int main(int argc, char **argv) {
-    bool jset = false, fset = false;
+    auto a = rb::parse_args(argc, argv);
 
-    auto th_n = def::th_n;
-    auto filename = def::filename;
+    std::cout << "filename " << a.fname << '\n';
+    std::cout << "jobs " << a.th_n << '\n';
 
-    for (int i = 1; i < argc; i++) {
-        if (argv[i][0] == '-' && argv[i][1] == 'j' && !jset) {
-            th_n = std::max(1, std::atoi(&argv[i][2]));
-            jset = true;
-        } else if (!fset) {
-            filename = std::string(argv[i]);
-            fset = true;
-        } else {
-            usage(argv[0]);
-        }
-    }
-
-    std::cout << "filename " << filename << '\n';
-    std::cout << "jobs " << th_n << '\n';
-
-    file_exist(filename); // default = foo.bin
+    file_exist(a.fname); // default = foo.bin
 
     auto q = moodycamel::ConcurrentQueue<std::unique_ptr<rb::RowPair<def::hd_l, def::tl_l>>>();
     using chan_t = decltype(q); // lol
 
-    uint lines = def::row_n / def::th_n;
+    uint lines = def::row_n / a.th_n;
     uint offset = 0; // first thread takes does remainder
     // @TODO use a thread_pool instead
-    auto th_vec = std::vector<std::thread>(th_n);
+    auto th_vec = std::vector<std::thread>(a.th_n);
     for(auto it = th_vec.begin(); it != th_vec.end(); it++) {
-        uint lines = (def::row_n / def::th_n) + (offset == 0 ? 0 : def::row_n % def::th_n);
+        uint lines = (def::row_n / a.th_n) + (offset == 0 ? 0 : def::row_n % a.th_n);
         (* it) = std::thread(th_work<chan_t>,
                              std::ref(q), offset, lines, def::col_n);
         offset += lines;
     }
 
-    auto o = std::ofstream(filename, std::ios::binary | std::ios::app);
+    auto o = std::ofstream(a.fname, std::ios::binary | std::ios::app);
     auto writer = std::thread(th_writer<chan_t>, std::ref(q), std::ref(o), def::row_n);
 
     for(auto& th : th_vec) {
         th.join();
     }
     writer.join();
+    return EXIT_SUCCESS;
 }

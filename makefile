@@ -4,8 +4,6 @@ FLAGS = -O2 -Wextra -Wall -flto -fuse-ld=lld
 CPP = clang++ -std=c++17
 INCREDIBLESHITLANG = -lstdc++fs
 
-build_dir = ./build
-
 .PHONY: all
 all: mktable lookup
 
@@ -14,26 +12,23 @@ test: test.cpp
 	./test
 
 utils.o: utils.hpp config.h
-	$(CPP) $(FLAGS) -c utils.cpp -o $(build_dir)/$@
+	$(CPP) $(FLAGS) -c utils.cpp -o $@
 
 types.o: types.cpp types.hpp utils.o config.h
-	$(CPP) $(FLAGS) -c types.cpp -o $(build_dir)/$@
+	$(CPP) $(FLAGS) -c types.cpp -o $@
 
 rainbow-table.o: rainbow-table.cpp utils.o types.o
-	$(CPP) $(TLIBS) $(FLAGS) -c rainbow-table.cpp -o $(build_dir)/$@
+	$(CPP) $(TLIBS) $(FLAGS) -c rainbow-table.cpp -o $@
 
 rainbow-lookup.o: rainbow-lookup.cpp types.o utils.o
-	$(CPP) $(FLAGS) -c rainbow-lookup.cpp -o $(build_dir)/$@
+	$(CPP) $(FLAGS) -c rainbow-lookup.cpp -o $@
 
 mktable: rainbow-table.o types.o utils.o
-	$(CPP) $(FLAGS) $(LIBS) -o $@ $(addprefix $(build_dir)/, $^) $(INCREDIBLESHITLANG)
+	$(CPP) $(FLAGS) $(LIBS) -o $@ $^ $(INCREDIBLESHITLANG)
 
 lookup: rainbow-lookup.o types.o utils.o
-	$(CPP) $(FLAGS) $(TLIBS) -std=c++17 -o $@ $(addprefix $(build_dir)/, $^)
+	$(CPP) $(FLAGS) $(LIBS) -o $@ $^
 
 clean:
-	rm -v -f $(build_dir)/*.o
-	rm -v -rf $(build_dir)
 	rm -v -f *.o
-	rm -v -f mktable
-	rm -v -f lookup
+	rm -v -f mktable lookup

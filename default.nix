@@ -16,14 +16,14 @@ stdenvNoCC.mkDerivation {
     # LD_LIBRARY_PATH = "${cryptopp}/lib"; # useless?
 
     buildPhase = ''
-      mkdir -p build
-      make mktable
+      make all
     '';
 
     installPhase = ''
       mkdir -p $out
       cp mktable $out/
+      cp lookup $out/
       # TODO get rid of this... LD_LIBRARY_PATH doesn't help
-      patchelf --set-rpath ${cryptopp}/lib $out/mktable
+      patchelf --set-rpath ${cryptopp}/lib $out/*
     '';
 }
