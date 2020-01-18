@@ -58,7 +58,9 @@ void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
     for(size_t i = 0; i < max_lines; i++) {
         if(max_lines > div && i % div == 0){
             display_g.lock();
-            std::cout << id << ": " << (((float)i) / 1000) << "/" << (max_lines/1000) << "K" << std::endl;
+            std::cout << std::hex << id << std::dec
+                      << ": " << (((float)i) / 1000) << "/"
+                      << (max_lines/1000) << "K\n";
             display_g.unlock();
         }
         auto res = compute_line(next_head(start++), max_col);
@@ -66,7 +68,7 @@ void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
     }
 
     display_g.lock();
-    std::cout << id << ": finished work" << std::endl;
+    std::cout << std::hex << id << std::dec << ": finished work\n";
     display_g.unlock();
 }
 
@@ -107,13 +109,6 @@ void file_exist(const std::string& filepath) {
         o.close();
         std::cout << "file deleted" << std::endl;
     }
-}
-
-template<typename T, size_t N>
-std::ostream& operator<<(std::ostream& o, const std::array<T,N>& arr){
-    for(auto it : arr)
-        o << it;
-    return o;
 }
 
 int main(int argc, char **argv) {

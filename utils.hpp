@@ -32,18 +32,7 @@ namespace rb {
     return N-1;
   }
 
-  void print_hex(const u8 *buf, size_t len);
-
-  template<typename It>
-  void from_hex(const std::string& str, const It& rbegin, const It& rend);
-
-  template<typename Arr, typename Str>
-  auto from_hex(const Str& str);
-
-  template< class T >
-  std::string to_hex(const T& xs);
-
-  template<class T, size_t N>
+  template<typename T, size_t N>
   std::array<T,N> to_array(const std::string& s);
 
   template<typename T, size_t N>
@@ -52,6 +41,50 @@ namespace rb {
     std::array<T, N> d;
     std::copy(s.begin(), s.end(), d.begin()); // this is the recommended way
     return d;
+  }
+
+  void print_hex(const u8 *buf, size_t len);
+
+  template<typename T >
+  std::string to_hex(const T& xs);
+
+  inline u8 pval(u8 c) {
+    if ('a' <= c && c <= 'f')
+      return 10 + (c - 'a');
+    else if ('0' <= c && c <= '9')
+      return c - '0';
+
+    std::cerr << "not a hex character: out of range";
+    std::exit(EXIT_FAILURE);
+  }
+
+  template<typename rev_it>
+  void from_hex(const std::string& str, const rev_it& rbegin, const rev_it& rend) {
+    auto it = rbegin;
+    int i = 0; /* counter to know which nibble are in. */
+    for(auto is = str.rbegin(); is != str.rend() && it != rend; is++) {
+      if(i&1) { /* odd char = Most significat hex */
+        *it |= pval(*is) << 4;
+        it++;
+      } else {
+        *it = pval(*is);
+      }
+      i++;
+    }
+    /* if odd number of chars, we'd overwrite (instead of or-ing) the last byte */
+    if(i&1)
+      it++;
+    for(; it < rend; it++) {
+      *it = 0;
+    }
+  }
+
+
+  template<typename T>
+  T from_hex(const std::string& str) {
+    T r;
+    from_hex(str, std::rbegin(r), std::rend(r));
+    return r;
   }
 
   template< class T >
