@@ -48,7 +48,7 @@ namespace rb {
   template<typename T >
   std::string to_hex(const T& xs);
 
-  inline u8 pval(u8 c) {
+  inline u8 pval(u8 c) noexcept {
     if ('a' <= c && c <= 'f')
       return 10 + (c - 'a');
     else if ('0' <= c && c <= '9')
@@ -59,7 +59,7 @@ namespace rb {
   }
 
   template<typename rev_it>
-  void from_hex(const std::string& str, const rev_it& rbegin, const rev_it& rend) {
+  void from_hex(const std::string& str, const rev_it& rbegin, const rev_it& rend) noexcept {
     auto it = rbegin;
     int i = 0; /* counter to know which nibble are in. */
     for(auto is = str.rbegin(); is != str.rend() && it != rend; is++) {

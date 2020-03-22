@@ -5,7 +5,7 @@
 namespace rb {
     using namespace def;
     template<size_t Hd, size_t Tl>
-    struct RowPair<Hd,Tl>::row_pair* RowPair<Hd,Tl>::data() {
+    struct RowPair<Hd,Tl>::row_pair* RowPair<Hd,Tl>::data() noexcept const {
         return &rp;
     }
     template<size_t Hd, size_t Tl>
@@ -36,7 +36,7 @@ namespace rb {
     }
 
     template<size_t Hd, size_t Tl>
-    size_t RowPair<Hd,Tl>::size() {
+    size_t RowPair<Hd,Tl>::size() noexcept const {
         return Hd+Tl;
     }
 

@@ -12,7 +12,7 @@ namespace std {
         typedef array<T, N> argument_type;
         typedef size_t result_type;
 
-        result_type operator()(const argument_type& a) const {
+        result_type operator()(const argument_type& a) noexcept const {
             hash<T> hasher;
             result_type h = 0;
             for (result_type i = 0; i < N; ++i) {
@@ -61,13 +61,15 @@ namespace rb {
     };
 
     template <typename Digest, typename T>
-    inline Digest& hash(Digest& o, T pt) {
+    inline Digest& hash(Digest& o, T pt) noexcept {
         CryptoPP::SHA256().CalculateDigest(o.data(), pt.data(), pt.size());
         return o;
     }
 
     template <typename T, size_t M, size_t N>
-    inline std::array<T,M>& reduce(std::array<T, M>& o, const std::array<u8, N>& digest, const size_t& round) {
+    inline std::array<T,M>& reduce( std::array<T, M>& o
+                                  , const std::array<u8, N>& digest
+                                  , const size_t& round) noexcept {
         size_t r = round;
         size_t k = 0, l = rb::length(charset);
         for(size_t i = 0; i < M; i++) {
@@ -82,6 +84,6 @@ namespace rb {
             o[i] = charset[r % l];
         }
         return o;
-    }
+   }
 
 }

@@ -21,7 +21,7 @@
 //   array we need to change at the time -> pass array, compute mask (?) and change those?
 //   this would save us on the loop
 //   ..  but then, it's only called once per line...
-auto next_head(uint n) {
+auto next_head(uint n) noexcept {
     using namespace def;
     pass_t r;
     const size_t cslen = rb::length(charset);
@@ -33,7 +33,7 @@ auto next_head(uint n) {
     return r;
 }
 
-auto compute_line(const pass_t& head, uint max_col) {
+auto compute_line(const pass_t& head, uint max_col) noexcept {
     using namespace def;
     auto tl = hash_t();
     auto h = head;
@@ -50,7 +50,7 @@ auto compute_line(const pass_t& head, uint max_col) {
 std::mutex display_g;
 
 template< typename Q>
-void th_work(Q& chan, uint start, uint max_lines, uint max_col) {
+void th_work(Q& chan, uint start, uint max_lines, uint max_col) noexcept {
     using namespace def;
     auto id = std::this_thread::get_id();
     const int div = 500;
